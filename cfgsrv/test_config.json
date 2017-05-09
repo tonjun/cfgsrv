@@ -1,0 +1,8 @@
+{
+  "feature1": {
+    "enable": false
+  },
+  "feature2": {
+    "enable": true
+  }
+}
