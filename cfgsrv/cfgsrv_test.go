@@ -45,7 +45,7 @@ var _ = Describe("ConfigServer", func() {
 		addr := getListenAddress()
 
 		// run server
-		server := cfgsrv.NewConfigServer(&cfgsrv.Options{
+		server = cfgsrv.NewConfigServer(&cfgsrv.Options{
 			ListenAddr: addr,
 			ConfigFile: "./test_config.json",
 		})
@@ -55,6 +55,7 @@ var _ = Describe("ConfigServer", func() {
 		time.Sleep(10 * time.Millisecond)
 		client1 = wsclient.NewWSClient(fmt.Sprintf("ws://%s", addr))
 		client1.OnMessage(func(data []byte) {
+			log.Printf("client1 recv: %s", string(data))
 			buffer1.Write(data)
 		})
 		client1.OnOpen(func() {
@@ -71,7 +72,7 @@ var _ = Describe("ConfigServer", func() {
 		// connect a client2 and write all incoming message to gbytes.Buffer
 		client2 = wsclient.NewWSClient(fmt.Sprintf("ws://%s", addr))
 		client2.OnMessage(func(data []byte) {
-			//log.Printf("client2 recv: %s", string(data))
+			log.Printf("client2 recv: %s", string(data))
 			buffer2.Write(data)
 		})
 		client2.OnOpen(func() {
@@ -94,10 +95,12 @@ var _ = Describe("ConfigServer", func() {
 	It("op \"get\" should return the config and the empty list of servers", func() {
 
 		client1.SendJSON(wsclient.M{
-			"op": "get",
+			"op":   "get",
+			"type": "request",
+			"id":   "get1",
 		})
 		Eventually(buffer1).Should(gbytes.Say(
-			`{"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
+			`{"op":"get","type":"response","id":"get1","config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
 		))
 
 	})
