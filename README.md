@@ -14,6 +14,8 @@ Go lang apps config server
 ```json
 {
   "op": "get",
+  "type": "request",
+  "id": "request1",
 }
 ```
 
@@ -21,7 +23,10 @@ Go lang apps config server
 
 ```json
 {
-  "servers": [
+  "op": "get",,
+  "type": "response",
+  "id": "request1",
+  "peers": [
     "192.168.0.100:7070",
     "192.168.0.101:7070",
   ],
@@ -42,6 +47,8 @@ Go lang apps config server
 ```json
 {
   "op": "connect",
+  "type": "request",
+  "id": "c1",
   "addr": "192.168.0.100:7070",
 }
 ```
@@ -50,7 +57,10 @@ Go lang apps config server
 
 ```json
 {
-  "servers": [
+  "op": "connect",
+  "type": "response",
+  "id": "c1",
+  "peers": [
     "192.168.0.100:7070",
     "192.168.0.101:7070",
   ],
@@ -71,7 +81,9 @@ Go lang apps config server
 
 ```json
 {
-  "op": "ping"
+  "op": "ping",
+  "type": "request",
+  "id": "ping1",
 }
 ```
 
@@ -79,7 +91,9 @@ Go lang apps config server
 
 ```json
 {
-  "op": "pong"
+  "op": "pong",
+  "type": "response",
+  "id": "ping1",
 }
 ```
 
@@ -87,8 +101,10 @@ Go lang apps config server
 
 ```json
 {
-  "op": "servers_changed",
-  "servers": [
+  "op": "peers_changed",
+  "type": "push",
+  "id": "1",
+  "peers": [
     "192.168.0.100:7070",
     "192.168.0.101:7070",
     "192.168.0.102:7070",
@@ -99,6 +115,8 @@ Go lang apps config server
 ```json
 {
   "op": "config_changed",
+  "type": "push",
+  "id": "2",
   "config": {
     "addr": ":7070",
     "feature1": "enabled",
