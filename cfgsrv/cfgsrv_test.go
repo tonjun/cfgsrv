@@ -24,6 +24,26 @@ func getListenAddress() string {
 	return addr
 }
 
+func connectClient(addr string, buff *gbytes.Buffer, name string) *wsclient.WSClient {
+	connected := make(chan bool)
+	c := wsclient.NewWSClient(fmt.Sprintf("ws://%s", addr))
+	c.OnMessage(func(data []byte) {
+		log.Printf("%s recv: %s", name, string(data))
+		buff.Write(data)
+	})
+	c.OnOpen(func() {
+		connected <- true
+	})
+	c.OnError(func(err error) {
+		log.Printf("%s reconnecting..", name)
+		time.Sleep(10 * time.Millisecond)
+		c.Connect()
+	})
+	c.Connect()
+	<-connected
+	return c
+}
+
 var _ = Describe("ConfigServer", func() {
 
 	var (
@@ -31,16 +51,18 @@ var _ = Describe("ConfigServer", func() {
 
 		client1 *wsclient.WSClient
 		client2 *wsclient.WSClient
+		//client3 *wsclient.WSClient
 
 		buffer1 *gbytes.Buffer
 		buffer2 *gbytes.Buffer
+		//buffer3 *gbytes.Buffer
 	)
 
 	BeforeEach(func() {
+		log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 		buffer1 = gbytes.NewBuffer()
 		buffer2 = gbytes.NewBuffer()
-
-		connected := make(chan bool)
+		//buffer3 = gbytes.NewBuffer()
 
 		addr := getListenAddress()
 
@@ -51,40 +73,12 @@ var _ = Describe("ConfigServer", func() {
 		})
 		go server.Start()
 
-		// connect a client1 and write all incoming message to gbytes.Buffer
 		time.Sleep(10 * time.Millisecond)
-		client1 = wsclient.NewWSClient(fmt.Sprintf("ws://%s", addr))
-		client1.OnMessage(func(data []byte) {
-			log.Printf("client1 recv: %s", string(data))
-			buffer1.Write(data)
-		})
-		client1.OnOpen(func() {
-			connected <- true
-		})
-		client1.OnError(func(err error) {
-			log.Printf("reconnecting..")
-			time.Sleep(10 * time.Millisecond)
-			client1.Connect()
-		})
-		client1.Connect()
-		<-connected
 
-		// connect a client2 and write all incoming message to gbytes.Buffer
-		client2 = wsclient.NewWSClient(fmt.Sprintf("ws://%s", addr))
-		client2.OnMessage(func(data []byte) {
-			log.Printf("client2 recv: %s", string(data))
-			buffer2.Write(data)
-		})
-		client2.OnOpen(func() {
-			connected <- true
-		})
-		client2.OnError(func(err error) {
-			log.Printf("reconnecting..")
-			time.Sleep(10 * time.Millisecond)
-			client2.Connect()
-		})
-		client2.Connect()
-		<-connected
+		// create client connections and send incomding data to buffer
+		client1 = connectClient(addr, buffer1, "client1")
+		client2 = connectClient(addr, buffer2, "client2")
+		//client3 = connectClient(addr, buffer3, "client3")
 
 	})
 
@@ -103,6 +97,74 @@ var _ = Describe("ConfigServer", func() {
 			`{"op":"get","type":"response","id":"get1","config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
 		))
 
+	})
+
+	It("op \"connect\" should return the config and the list of peers", func() {
+
+		client1.SendJSON(wsclient.M{
+			"op":   "connect",
+			"type": "request",
+			"id":   "2",
+			"addr": "127.0.0.1:7171",
+		})
+		Eventually(buffer1).Should(gbytes.Say(
+			`{"op":"connect","type":"response","id":"2","peers":\["127\.0\.0\.1:7171"\],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
+		))
+
+	})
+
+	It("op \"connect\" should add the given addr to the list of peers", func() {
+
+		client1.SendJSON(wsclient.M{
+			"op":   "connect",
+			"type": "request",
+			"id":   "2",
+			"addr": "127.0.0.1:7171",
+		})
+		Eventually(buffer1).Should(gbytes.Say(
+			`{"op":"connect","type":"response","id":"2","peers":\["127\.0\.0\.1:7171"\],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
+		))
+
+		client2.SendJSON(wsclient.M{
+			"op":   "connect",
+			"type": "request",
+			"id":   "2",
+			"addr": "192.168.0.100:7171",
+		})
+		Eventually(buffer2).Should(gbytes.Say(
+			`{"op":"connect","type":"response","id":"2","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
+		))
+
+	})
+
+	It("should inform all the peers on connect", func() {
+
+		client1.SendJSON(wsclient.M{
+			"op":   "connect",
+			"type": "request",
+			"id":   "2",
+			"addr": "127.0.0.1:7171",
+		})
+		Eventually(buffer1).Should(gbytes.Say(
+			`{"op":"connect","type":"response","id":"2","peers":\["127\.0\.0\.1:7171"\],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
+		))
+
+		client2.SendJSON(wsclient.M{
+			"op":   "connect",
+			"type": "request",
+			"id":   "2",
+			"addr": "192.168.0.100:7171",
+		})
+		Eventually(buffer2).Should(gbytes.Say(
+			`{"op":"connect","type":"response","id":"2","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
+		))
+
+		Eventually(buffer1).Should(gbytes.Say(
+			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"]}`,
+		))
+		Consistently(buffer2).ShouldNot(gbytes.Say(
+			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"]}`,
+		))
 	})
 
 })
