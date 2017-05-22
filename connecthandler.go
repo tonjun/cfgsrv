@@ -82,8 +82,8 @@ func (h *ConnectHandler) ProcessMessage(m *Message, c pubsub.Conn) {
 func (h *ConnectHandler) genReqID() string {
 	h.reqIDMtx.Lock()
 	defer h.reqIDMtx.Unlock()
-	id := (h.reqID + 1) % 999999
-	return fmt.Sprintf("%d", id)
+	h.reqID = (h.reqID + 1) % 999999
+	return fmt.Sprintf("%d", h.reqID)
 }
 
 func (h *ConnectHandler) pushPeers() {
