@@ -71,6 +71,10 @@ func (s *ConfigServer) Stop() {
 	s.store.Close()
 }
 
+func (s *ConfigServer) GetStore() gostore.Store {
+	return s.store
+}
+
 func (s *ConfigServer) onMessage(data []byte, c pubsub.Conn) {
 	//log.Printf("onMessage: %s", string(data))
 
@@ -112,7 +116,12 @@ func (s *ConfigServer) onConnectionWillClose(c pubsub.Conn) {
 	item, found, _ := s.store.Get(fmt.Sprintf("%d", c.ID()))
 	if found {
 		addr := item.Value.(string)
+
 		log.Printf("connectin closed for addr: %s", addr)
+
+		s.store.Del(fmt.Sprintf("%d", c.ID()))
+		s.store.Del(addr)
+
 	} else {
 		log.Printf("connection %d not found in store", c.ID())
 	}
