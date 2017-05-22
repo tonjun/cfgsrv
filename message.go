@@ -1,5 +1,10 @@
 package cfgsrv
 
+import (
+	"encoding/json"
+)
+
+// Message is the message structure used for communicating with the config server
 type Message struct {
 	OP      string      `json:"op"`
 	Type    string      `json:"type"`
@@ -11,14 +16,34 @@ type Message struct {
 }
 
 const (
-	OPGet           = "get"
-	OPConnect       = "connect"
-	OPPing          = "ping"
-	OPPong          = "pong"
-	OPPeersChanged  = "peers_changed"
+	// OPGet is the operation for getting the config. Refer to README.md for the protocol
+	OPGet = "get"
+
+	// OPConnect is the connect operation
+	OPConnect = "connect"
+
+	// OPPing is the ping operation
+	OPPing = "ping"
+
+	// OPPong is the ping response
+	OPPong = "pong"
+
+	// OPPeersChanged is the peers_changed push operation
+	OPPeersChanged = "peers_changed"
+
+	// OPConfigChanged is the config changed push operation
 	OPConfigChanged = "config_changed"
 
-	TypeRequest  = "request"
-	TypeResponse = "response"
-	TypePush     = "push"
+	TypeRequest  = "request"  // message type request
+	TypeResponse = "response" // message type response
+	TypePush     = "push"     // message type push
 )
+
+// ToBytes converts the message to byte array for sending to socket
+func (m *Message) ToBytes() []byte {
+	b, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	return b
+}
