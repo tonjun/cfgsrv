@@ -6,4 +6,5 @@ import (
 
 type Handler interface {
 	ProcessMessage(m *Message, c pubsub.Conn)
+	Close()
 }

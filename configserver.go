@@ -17,14 +17,17 @@ type ConfigServer struct {
 	config   map[string]interface{}
 	store    gostore.Store
 	handlers []Handler
+	timeout  int32
 }
 
+// Options is the config server options used in NewConfigServer
 type Options struct {
-	ListenAddr string
-	ConfigFile string
-	Timeout    int32
+	ListenAddr string // Websocket listen address
+	ConfigFile string // JSON config file
+	Timeout    int32  // Ping timeout in seconds
 }
 
+// NewConfigServer creates a new instance of ConfigServer
 func NewConfigServer(opts *Options) *ConfigServer {
 	return &ConfigServer{
 		opts: opts,
@@ -34,9 +37,11 @@ func NewConfigServer(opts *Options) *ConfigServer {
 		}),
 		store:    gostore.NewStore(),
 		handlers: make([]Handler, 0),
+		timeout:  opts.Timeout,
 	}
 }
 
+// Start starts the Config server
 func (s *ConfigServer) Start() error {
 
 	d, err := ioutil.ReadFile(s.opts.ConfigFile)
@@ -55,8 +60,11 @@ func (s *ConfigServer) Start() error {
 	}
 	//log.Printf("cfg: %v", s.config)
 
-	ch := NewConnectHandler(s.store, &s.config)
+	ch := NewConnectHandler(s.store, &s.config, s.opts)
 	s.handlers = append(s.handlers, ch)
+
+	ph := NewPingHandler(s.store, s.opts)
+	s.handlers = append(s.handlers, ph)
 
 	s.store.Init()
 
@@ -66,11 +74,16 @@ func (s *ConfigServer) Start() error {
 	return nil
 }
 
+// Stop stops the config server
 func (s *ConfigServer) Stop() {
 	s.srv.Stop()
 	s.store.Close()
+	for _, h := range s.handlers {
+		h.Close()
+	}
 }
 
+// GetStore returns the in-memory k/v store
 func (s *ConfigServer) GetStore() gostore.Store {
 	return s.store
 }
@@ -85,6 +98,8 @@ func (s *ConfigServer) onMessage(data []byte, c pubsub.Conn) {
 		return
 	}
 	log.Printf("operation: %s", req.OP)
+
+	// pass to all the handlers
 	for _, h := range s.handlers {
 		h.ProcessMessage(req, c)
 	}
@@ -115,13 +130,11 @@ func (s *ConfigServer) send(c pubsub.Conn, m *Message) {
 func (s *ConfigServer) onConnectionWillClose(c pubsub.Conn) {
 	item, found, _ := s.store.Get(fmt.Sprintf("%d", c.ID()))
 	if found {
+		// remove connection from mem store
 		addr := item.Value.(string)
-
 		log.Printf("connectin closed for addr: %s", addr)
-
 		s.store.Del(fmt.Sprintf("%d", c.ID()))
 		s.store.Del(addr)
-
 	} else {
 		log.Printf("connection %d not found in store", c.ID())
 	}
