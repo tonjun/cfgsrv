@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/tonjun/gostore"
 	"github.com/tonjun/pubsub"
@@ -12,19 +13,25 @@ import (
 type ConnectHandler struct {
 	store  gostore.Store
 	config *map[string]interface{}
+	opts   *Options
 
 	reqID    int64
 	reqIDMtx sync.Mutex
 }
 
-func NewConnectHandler(store gostore.Store, cfg *map[string]interface{}) Handler {
+func NewConnectHandler(store gostore.Store, cfg *map[string]interface{}, opts *Options) Handler {
 	return &ConnectHandler{
 		store:  store,
 		config: cfg,
+		opts:   opts,
 	}
 }
 
 func (h *ConnectHandler) ProcessMessage(m *Message, c pubsub.Conn) {
+
+	if m.OP != OPConnect {
+		return
+	}
 
 	peers := make([]string, 0)
 
@@ -67,6 +74,12 @@ func (h *ConnectHandler) ProcessMessage(m *Message, c pubsub.Conn) {
 		Value: m.Addr,
 	}, 0)
 
+	h.store.Put(&gostore.Item{
+		ID:    fmt.Sprintf("%s-ping", m.Addr),
+		Key:   fmt.Sprintf("%s-ping", m.Addr),
+		Value: m.Addr,
+	}, time.Duration(h.opts.Timeout)*time.Second)
+
 	resp := &Message{
 		OP:     OPConnect,
 		Type:   TypeResponse,
@@ -77,6 +90,9 @@ func (h *ConnectHandler) ProcessMessage(m *Message, c pubsub.Conn) {
 
 	c.Send(resp.ToBytes())
 
+}
+
+func (h *ConnectHandler) Close() {
 }
 
 func (h *ConnectHandler) genReqID() string {
