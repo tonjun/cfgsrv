@@ -1,6 +1,7 @@
 package main_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -30,6 +31,22 @@ func connectClient(addr string, buff *gbytes.Buffer, name string) *wsclient.WSCl
 	c := wsclient.NewWSClient(fmt.Sprintf("ws://%s", addr))
 	c.OnMessage(func(data []byte) {
 		log.Printf("%s recv: %s", name, string(data))
+
+		m := &cfgsrv.Message{}
+		err := json.Unmarshal(data, m)
+		if err != nil {
+			log.Printf("onMessage parse error: %s", err.Error())
+			return
+		}
+		if m.OP == cfgsrv.OPPing {
+			c.SendJSON(wsclient.M{
+				"op":   "pong",
+				"type": "response",
+				"id":   m.ID,
+			})
+			return
+		}
+
 		buff.Write(data)
 	})
 	c.OnOpen(func() {
@@ -71,6 +88,7 @@ var _ = Describe("ConfigServer", func() {
 		server = cfgsrv.NewConfigServer(&cfgsrv.Options{
 			ListenAddr: addr,
 			ConfigFile: "./test_config.json",
+			Timeout:    3,
 		})
 		go server.Start()
 
@@ -85,6 +103,7 @@ var _ = Describe("ConfigServer", func() {
 
 	AfterEach(func() {
 		server.Stop()
+		time.Sleep(10 * time.Millisecond)
 	})
 
 	It("op \"get\" should return the config and the empty list of servers", func() {
@@ -219,7 +238,6 @@ var _ = Describe("ConfigServer", func() {
 			`{"op":"connect","type":"response","id":"2","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
 		))
 
-		client1.Close()
 		client1.OnClose(func() {
 			defer GinkgoRecover()
 
@@ -239,6 +257,75 @@ var _ = Describe("ConfigServer", func() {
 			close(done)
 		})
 
+		client1.Close()
 	})
+
+	It("Should remove dead peers automatically by checking last heartbeat", func(done Done) {
+
+		client1.SendJSON(wsclient.M{
+			"op":   "connect",
+			"type": "request",
+			"id":   "2",
+			"addr": "127.0.0.1:7171",
+		})
+		Eventually(buffer1).Should(gbytes.Say(
+			`{"op":"connect","type":"response","id":"2","peers":\["127\.0\.0\.1:7171"\],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
+		))
+
+		client2.SendJSON(wsclient.M{
+			"op":   "connect",
+			"type": "request",
+			"id":   "2",
+			"addr": "192.168.0.100:7171",
+		})
+		Eventually(buffer2).Should(gbytes.Say(
+			`{"op":"connect","type":"response","id":"2","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
+		))
+
+		Eventually(buffer1).Should(gbytes.Say(
+			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"]}`,
+		))
+		Consistently(buffer2).ShouldNot(gbytes.Say(
+			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"]}`,
+		))
+
+		client3.SendJSON(wsclient.M{
+			"op":   "connect",
+			"type": "request",
+			"id":   "req-client-3",
+			"addr": "192.168.0.101:7171",
+		})
+		Eventually(buffer3).Should(gbytes.Say(
+			`{"op":"connect","type":"response","id":"req-client-3","peers":\["127\.0\.0\.1:7171","192\.168\.0\.100:7171","192\.168\.0\.101:7171"],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
+		))
+
+		Eventually(buffer1).Should(gbytes.Say(
+			`{"op":"peers_changed","type":"push","id":"3","peers":\["127\.0\.0\.1:7171","192\.168\.0\.100:7171","192\.168\.0\.101:7171"\]}`,
+		))
+		Eventually(buffer2).Should(gbytes.Say(
+			`{"op":"peers_changed","type":"push","id":"3","peers":\["127\.0\.0\.1:7171","192\.168\.0\.100:7171","192\.168\.0\.101:7171"\]}`,
+		))
+		Consistently(buffer3).ShouldNot(gbytes.Say(
+			`{"op":"peers_changed","type":"push","id":"3","peers":\["127\.0\.0\.1:7171","192\.168\.0\.100:7171","192\.168\.0\.101:7171"\]}`,
+		))
+
+		log.Printf("Closing client1")
+
+		client1.Close()
+
+		log.Printf("Sleeping")
+		//time.Sleep(3500 * time.Millisecond)
+		select {
+		case <-time.After(3500 * time.Millisecond):
+			Eventually(buffer2).Should(gbytes.Say(
+				`{"op":"peers_changed","type":"push","id":"4","peers":\["192\.168\.0\.100:7171","192\.168\.0\.101:7171"\]}`,
+			))
+			Eventually(buffer3).Should(gbytes.Say(
+				`{"op":"peers_changed","type":"push","id":"4","peers":\["192\.168\.0\.100:7171","192\.168\.0\.101:7171"\]}`,
+			))
+			close(done)
+		}
+
+	}, 4)
 
 })
