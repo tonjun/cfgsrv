@@ -29,7 +29,7 @@ func NewPingHandler(store gostore.Store, opts *Options) Handler {
 	}
 	log.Printf("NewPingHandler timeout: %d", opts.Timeout)
 	go h.pingLoop()
-	store.OnItemExpire(h.onItemExpire)
+	store.OnItemDidExpire(h.onItemDidExpire)
 	return h
 }
 
@@ -93,9 +93,15 @@ func (h *PingHandler) pingLoop() {
 	}
 }
 
-func (h *PingHandler) onItemExpire(item *gostore.Item) {
+func (h *PingHandler) onItemDidExpire(item *gostore.Item) {
 	addr := item.Value.(string)
 	log.Printf("connection: \"%s\" expired key: \"%s\"", addr, item.Key)
+
+	h.store.ListDel("peers", &gostore.Item{
+		ID:    addr,
+		Key:   "peers",
+		Value: addr,
+	})
 }
 
 func (h *PingHandler) genReqID() string {
