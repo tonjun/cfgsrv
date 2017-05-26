@@ -168,6 +168,9 @@ var _ = Describe("ConfigServer", func() {
 		Eventually(buffer1).Should(gbytes.Say(
 			`{"op":"connect","type":"response","id":"2","peers":\["127\.0\.0\.1:7171"\],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
 		))
+		Eventually(buffer1).Should(gbytes.Say(
+			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171"]}`,
+		))
 
 		client2.SendJSON(wsclient.M{
 			"op":   "connect",
@@ -182,7 +185,7 @@ var _ = Describe("ConfigServer", func() {
 		Eventually(buffer1).Should(gbytes.Say(
 			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"]}`,
 		))
-		Consistently(buffer2).ShouldNot(gbytes.Say(
+		Eventually(buffer2).Should(gbytes.Say(
 			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"]}`,
 		))
 
@@ -200,6 +203,9 @@ var _ = Describe("ConfigServer", func() {
 			`{"op":"peers_changed","type":"push","id":"3","peers":\["127\.0\.0\.1:7171","192\.168\.0\.100:7171","192\.168\.0\.101:7171"\]}`,
 		))
 		Eventually(buffer2).Should(gbytes.Say(
+			`{"op":"peers_changed","type":"push","id":"3","peers":\["127\.0\.0\.1:7171","192\.168\.0\.100:7171","192\.168\.0\.101:7171"\]}`,
+		))
+		Eventually(buffer3).Should(gbytes.Say(
 			`{"op":"peers_changed","type":"push","id":"3","peers":\["127\.0\.0\.1:7171","192\.168\.0\.100:7171","192\.168\.0\.101:7171"\]}`,
 		))
 
@@ -271,6 +277,9 @@ var _ = Describe("ConfigServer", func() {
 		Eventually(buffer1).Should(gbytes.Say(
 			`{"op":"connect","type":"response","id":"2","peers":\["127\.0\.0\.1:7171"\],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
 		))
+		Eventually(buffer1).Should(gbytes.Say(
+			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171"]}`,
+		))
 
 		client2.SendJSON(wsclient.M{
 			"op":   "connect",
@@ -281,12 +290,11 @@ var _ = Describe("ConfigServer", func() {
 		Eventually(buffer2).Should(gbytes.Say(
 			`{"op":"connect","type":"response","id":"2","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"],"config":\{"feature1":\{"enable":false\},"feature2":\{"enable":true\}\}}`,
 		))
-
 		Eventually(buffer1).Should(gbytes.Say(
-			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"]}`,
+			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171","192\.168\.0\.100:7171"]}`,
 		))
-		Consistently(buffer2).ShouldNot(gbytes.Say(
-			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171"\,"192\.168\.0\.100:7171"]}`,
+		Eventually(buffer2).Should(gbytes.Say(
+			`{"op":"peers_changed","type":"push","id":".","peers":\["127\.0\.0\.1:7171","192\.168\.0\.100:7171"]}`,
 		))
 
 		client3.SendJSON(wsclient.M{
@@ -305,7 +313,7 @@ var _ = Describe("ConfigServer", func() {
 		Eventually(buffer2).Should(gbytes.Say(
 			`{"op":"peers_changed","type":"push","id":"3","peers":\["127\.0\.0\.1:7171","192\.168\.0\.100:7171","192\.168\.0\.101:7171"\]}`,
 		))
-		Consistently(buffer3).ShouldNot(gbytes.Say(
+		Eventually(buffer3).Should(gbytes.Say(
 			`{"op":"peers_changed","type":"push","id":"3","peers":\["127\.0\.0\.1:7171","192\.168\.0\.100:7171","192\.168\.0\.101:7171"\]}`,
 		))
 
@@ -326,6 +334,6 @@ var _ = Describe("ConfigServer", func() {
 			close(done)
 		}
 
-	}, 4)
+	}, 5)
 
 })
