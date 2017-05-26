@@ -60,13 +60,13 @@ func (s *ConfigServer) Start() error {
 	}
 	//log.Printf("cfg: %v", s.config)
 
+	s.store.Init()
+
 	ch := NewConnectHandler(s.store, &s.config, s.opts)
 	s.handlers = append(s.handlers, ch)
 
 	ph := NewPingHandler(s.store, s.opts)
 	s.handlers = append(s.handlers, ph)
-
-	s.store.Init()
 
 	s.srv.OnMessage(s.onMessage)
 	s.srv.OnConnectionWillClose(s.onConnectionWillClose)
