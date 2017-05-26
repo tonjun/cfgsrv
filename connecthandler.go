@@ -20,11 +20,13 @@ type ConnectHandler struct {
 }
 
 func NewConnectHandler(store gostore.Store, cfg *map[string]interface{}, opts *Options) Handler {
-	return &ConnectHandler{
+	h := &ConnectHandler{
 		store:  store,
 		config: cfg,
 		opts:   opts,
 	}
+	h.store.OnListDidChange(h.onListDidChange)
+	return h
 }
 
 func (h *ConnectHandler) ProcessMessage(m *Message, c pubsub.Conn) {
@@ -54,14 +56,6 @@ func (h *ConnectHandler) ProcessMessage(m *Message, c pubsub.Conn) {
 		peers = append(peers, m.Addr)
 	}
 
-	h.store.ListPush("peers", &gostore.Item{
-		ID:    m.Addr,
-		Key:   "peers",
-		Value: m.Addr,
-	})
-
-	h.pushPeers()
-
 	h.store.Put(&gostore.Item{
 		ID:    m.Addr,
 		Key:   m.Addr,
@@ -89,6 +83,12 @@ func (h *ConnectHandler) ProcessMessage(m *Message, c pubsub.Conn) {
 	}
 
 	c.Send(resp.ToBytes())
+
+	h.store.ListPush("peers", &gostore.Item{
+		ID:    m.Addr,
+		Key:   "peers",
+		Value: m.Addr,
+	})
 
 }
 
@@ -126,4 +126,9 @@ func (h *ConnectHandler) pushPeers() {
 			conn.Send(mesg.ToBytes())
 		}
 	}
+}
+
+func (h *ConnectHandler) onListDidChange(key string, items []*gostore.Item) {
+	log.Printf("onListDidChange: key: \"%s\" len: %d", key, len(items))
+	h.pushPeers()
 }
