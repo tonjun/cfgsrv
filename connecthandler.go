@@ -56,24 +56,24 @@ func (h *ConnectHandler) ProcessMessage(m *Message, c pubsub.Conn) {
 		peers = append(peers, m.Addr)
 	}
 
+	// save connection in memory store
 	h.store.Put(&gostore.Item{
 		ID:    m.Addr,
 		Key:   m.Addr,
 		Value: c,
 	}, 0)
-
 	h.store.Put(&gostore.Item{
 		ID:    fmt.Sprintf("%d", c.ID()),
 		Key:   fmt.Sprintf("%d", c.ID()),
 		Value: m.Addr,
 	}, 0)
-
 	h.store.Put(&gostore.Item{
 		ID:    fmt.Sprintf("%s-ping", m.Addr),
 		Key:   fmt.Sprintf("%s-ping", m.Addr),
 		Value: m.Addr,
 	}, time.Duration(h.opts.Timeout)*time.Second)
 
+	// send response
 	resp := &Message{
 		OP:     OPConnect,
 		Type:   TypeResponse,
@@ -81,9 +81,9 @@ func (h *ConnectHandler) ProcessMessage(m *Message, c pubsub.Conn) {
 		Config: h.config,
 		Peers:  peers,
 	}
-
 	c.Send(resp.ToBytes())
 
+	// add to peer list
 	h.store.ListPush("peers", &gostore.Item{
 		ID:    m.Addr,
 		Key:   "peers",
