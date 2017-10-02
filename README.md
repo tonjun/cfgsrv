@@ -15,7 +15,7 @@ Go lang apps config server
 {
   "op": "get",
   "type": "request",
-  "id": "request1",
+  "id": "request1"
 }
 ```
 
@@ -23,12 +23,12 @@ Go lang apps config server
 
 ```json
 {
-  "op": "get",,
+  "op": "get",
   "type": "response",
   "id": "request1",
   "peers": [
     "192.168.0.100:7070",
-    "192.168.0.101:7070",
+    "192.168.0.101:7070"
   ],
   "timeout": "20s",
   "config": {
@@ -36,8 +36,8 @@ Go lang apps config server
     "tls": {
       "addr": ":443",
       "cert": "./certs/latest/server.pem",
-      "key": "./certs/latest/server.key",
-    },
+      "key": "./certs/latest/server.key"
+    }
   }
 }
 ```
@@ -49,7 +49,7 @@ Go lang apps config server
   "op": "connect",
   "type": "request",
   "id": "c1",
-  "addr": "192.168.0.100:7070",
+  "addr": "192.168.0.100:7070"
 }
 ```
 
@@ -62,7 +62,7 @@ Go lang apps config server
   "id": "c1",
   "peers": [
     "192.168.0.100:7070",
-    "192.168.0.101:7070",
+    "192.168.0.101:7070"
   ],
   "timeout": "20s",
   "config": {
@@ -70,8 +70,8 @@ Go lang apps config server
     "tls": {
       "addr": ":443",
       "cert": "./certs/latest/server.pem",
-      "key": "./certs/latest/server.key",
-    },
+      "key": "./certs/latest/server.key"
+    }
   }
 }
 ```
@@ -83,7 +83,7 @@ Go lang apps config server
 {
   "op": "ping",
   "type": "request",
-  "id": "ping1",
+  "id": "ping1"
 }
 ```
 
@@ -93,7 +93,7 @@ Go lang apps config server
 {
   "op": "pong",
   "type": "response",
-  "id": "ping1",
+  "id": "ping1"
 }
 ```
 
@@ -107,8 +107,8 @@ Go lang apps config server
   "peers": [
     "192.168.0.100:7070",
     "192.168.0.101:7070",
-    "192.168.0.102:7070",
-  ],
+    "192.168.0.102:7070"
+  ]
 }
 ```
 
@@ -123,8 +123,8 @@ Go lang apps config server
     "tls": {
       "addr": ":443",
       "cert": "./certs/latest/server.pem",
-      "key": "./certs/latest/server.key",
-    },
+      "key": "./certs/latest/server.key"
+    }
   }
 }
 ```
