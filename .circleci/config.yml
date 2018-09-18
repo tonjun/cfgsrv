@@ -4,10 +4,6 @@
 version: 2
 jobs:
   build:
-    branches:
-      only:
-        - develop
-
     docker:
       # specify the version
       - image: circleci/golang:1.10
@@ -22,6 +18,11 @@ jobs:
     ####   /go/src/github.com/circleci/go-tool
     ####   /go/src/bitbucket.org/circleci/go-tool
     working_directory: /go/src/github.com/{{ORG_NAME}}/{{REPO_NAME}}
+    branches:
+      ignore:
+        - master
+      only:
+        - develop
     steps:
       - checkout
 
